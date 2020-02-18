@@ -1,11 +1,8 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import HttpResponse
-from rango.models import Category
-from rango.models import Page
-from rango.forms import CategoryForm
-from django.shortcuts import redirect
+from rango.models import Category, Page
 from django.urls import reverse
-from rango.forms import PageForm
+from rango.forms import CategoryForm, PageForm, UserForm, UserProfileForm
 
 def index(request):
     # gets top 5 most liked categories
@@ -81,3 +78,43 @@ def add_page(request, category_name_slug):
     
     context_dict = {'form': form, 'category': category}
     return render(request, 'rango/add_page.html', context=context_dict)
+
+def register(request):
+    # Boolean value representing the success of the registraion
+    registered = False
+
+    # If it's a HTTP POST, we're interested in processing form data
+    if request.method == 'POST':
+        user_form = UserForm(request.POST)
+        profile_form = UserProfileForm(request.POST)
+
+        if user_form.is_valid() and profile_form.is_valid():
+            # Save the users datato the database
+            user = user_form.save()
+
+            # Hash the password and update User object
+            user.set_password(user.password)
+            user.save()
+
+            # Now sort out the UserProfile instance
+            profile = profile_form.save(commit=False)
+            profile.user = user
+
+            # Get profile picture and save in UserProfile model
+            if 'picture' in request.FILES:
+                profile.picture = request.FILES['picture']
+            
+            profile.save()
+
+            registed = True
+        
+        else:
+            print(user_form.errors, profile_form.errors)
+
+    else:
+        # Not a HTTP POST, render form using two ModelForm instances
+
+        user_form = UserForm()
+        profile_form = UserProfileForm()
+    
+    return render(request, 'rango/register.html', context = {'user_form': user_form, 'profile_form': profile_form, 'registered': registered})
